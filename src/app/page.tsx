@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import ScrollTrigger from 'gsap/ScrollTrigger';
 import WorkGallery from '@/components/WorkGallery';
+import TechStack from '@/components/TechStack';
 import AsciiLogo from '@/components/AsciiLogo';
 import Navbar from '@/components/Navbar';
 import DecipherText from '@/components/DecipherText';
@@ -160,6 +161,9 @@ export default function Home() {
 
       {/* ASCII Logo */}
       <AsciiLogo />
+
+      {/* Tech Stack Marquee */}
+      <TechStack />
 
       {/* Horizontal Work Gallery */}
       <div id="work">

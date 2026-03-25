@@ -251,6 +251,16 @@ html.root-mode ::-webkit-scrollbar-thumb {
   width: max-content;
 }
 
+@keyframes marquee-fast {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee-fast {
+  animation: marquee-fast 10s linear infinite;
+  width: max-content;
+}
+
 /* Entrance Animation for secret terminal */
 @keyframes animate-in-up {
   from {

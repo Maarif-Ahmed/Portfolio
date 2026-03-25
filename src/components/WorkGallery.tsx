@@ -146,17 +146,18 @@ export default function WorkGallery() {
       const track = trackRef.current;
       if (!container || !track) return;
 
+      let getScrollAmount = () => track.scrollWidth - window.innerWidth;
+
       const horizontalTween = gsap.to(track, {
-        x: () => -(track.scrollWidth - window.innerWidth),
+        x: () => -getScrollAmount(),
         ease: 'none',
         scrollTrigger: {
           trigger: container,
           pin: true,
           pinSpacing: true,
           scrub: 1,
-          end: () => '+=' + (track.scrollWidth - window.innerWidth),
+          end: () => '+=' + getScrollAmount(),
           invalidateOnRefresh: true,
-          anticipatePin: 1,
           onUpdate: (self) => {
             numbersRef.current.forEach((num) => {
               if (num) {
@@ -167,24 +168,9 @@ export default function WorkGallery() {
         },
       });
 
-      const glitchTriggers = projects.map((_, i) =>
-        ScrollTrigger.create({
-          trigger: desktopImagesRef.current[i],
-          start: 'top center',
-          end: 'bottom center',
-          onUpdate: (self) => {
-            if (self.progress > 0.45 && self.progress < 0.55) {
-              desktopImagesRef.current[i]?.classList.add('glitch-magenta');
-              setTimeout(() => desktopImagesRef.current[i]?.classList.remove('glitch-magenta'), 300);
-            }
-          },
-        })
-      );
-
       return () => {
         horizontalTween.kill();
         horizontalTween.scrollTrigger?.kill();
-        glitchTriggers.forEach((trigger) => trigger.kill());
       };
     });
 
@@ -245,10 +231,10 @@ export default function WorkGallery() {
         </div>
       </section>
 
+      {/* Desktop horizontal scroll */}
       <section
         ref={containerRef}
-        className="hidden lg:flex h-screen w-full overflow-hidden bg-background relative items-center touch-action-pan-y"
-        style={{ touchAction: 'pan-y' }}
+        className="hidden lg:flex h-screen w-full bg-background relative items-center overflow-hidden"
       >
         <div ref={trackRef} className="flex h-full items-center gap-16 pl-[10vw] pr-[10vw]" style={{ width: 'max-content' }}>
           {projects.map((project, index) => (
@@ -327,3 +313,4 @@ export default function WorkGallery() {
     </>
   );
 }
+
