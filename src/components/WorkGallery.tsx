@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import ScrollTrigger from 'gsap/ScrollTrigger';
+import { useGSAP } from '@gsap/react';
 import { useRouter } from 'next/navigation';
 import { useTransitionContext } from '@/context/TransitionContext';
 import { useAudio } from '@/context/AudioContext';
@@ -138,7 +139,7 @@ export default function WorkGallery() {
     }
   };
 
-  useEffect(() => {
+  useGSAP(() => {
     let mm = gsap.matchMedia();
 
     mm.add("(min-width: 1024px)", () => {
@@ -146,17 +147,16 @@ export default function WorkGallery() {
       const track = trackRef.current;
       if (!container || !track) return;
 
-      let getScrollAmount = () => track.scrollWidth - window.innerWidth;
+      const scrollDist = track.scrollWidth - window.innerWidth;
 
-      const horizontalTween = gsap.to(track, {
-        x: () => -getScrollAmount(),
+      gsap.to(track, {
+        x: -scrollDist,
         ease: 'none',
         scrollTrigger: {
           trigger: container,
           pin: true,
-          pinSpacing: true,
           scrub: 1,
-          end: () => '+=' + getScrollAmount(),
+          end: () => '+=' + scrollDist,
           invalidateOnRefresh: true,
           onUpdate: (self) => {
             numbersRef.current.forEach((num) => {
@@ -167,11 +167,6 @@ export default function WorkGallery() {
           },
         },
       });
-
-      return () => {
-        horizontalTween.kill();
-        horizontalTween.scrollTrigger?.kill();
-      };
     });
 
     const handleLoad = () => ScrollTrigger.refresh();
@@ -179,11 +174,10 @@ export default function WorkGallery() {
     const timer = setTimeout(() => ScrollTrigger.refresh(), 500);
 
     return () => {
-      mm.revert();
       window.removeEventListener('load', handleLoad);
       clearTimeout(timer);
     };
-  }, []);
+  }, { scope: containerRef });
 
   return (
     <>
