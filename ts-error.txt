@@ -1,0 +1,4 @@
+﻿src/app/work/[id]/page.tsx(7,22): error TS1149: File name 'C:/Maarif-Portfolio/node_modules/gsap/types/Flip.d.ts' differs from already included file name 'C:/Maarif-Portfolio/node_modules/gsap/types/flip.d.ts' only in casing.
+  The file is in the program because:
+    Referenced via 'flip.d.ts' from file 'C:/Maarif-Portfolio/node_modules/gsap/types/index.d.ts'
+    Imported via 'gsap/Flip' from file 'C:/Maarif-Portfolio/src/app/work/[id]/page.tsx' with packageId 'gsap/types/Flip.d.ts@3.14.2'
