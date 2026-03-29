@@ -9,10 +9,10 @@ import { useTransitionContext } from '@/context/TransitionContext';
 gsap.registerPlugin(ScrollTrigger);
 
 const projects = [
-  { id: '1', title: 'Terminal Vibe', color: 'rgba(0,0,0,1)', img: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop' },
-  { id: '2', title: 'Neon Tracker', color: 'rgba(0,20,0,1)', img: 'https://images.unsplash.com/photo-1518098268026-4e89f1a2cd8e?q=80&w=2574&auto=format&fit=crop' },
-  { id: '3', title: 'Syntax Error', color: 'rgba(20,0,0,1)', img: 'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=2670&auto=format&fit=crop' },
-  { id: '4', title: 'Git Pushed', color: 'rgba(0,0,20,1)', img: 'https://images.unsplash.com/photo-1470071131384-001b85755b36?q=80&w=2670&auto=format&fit=crop' }
+  { id: '1', title: 'Terminal Vibe', color: 'rgba(0,0,0,1)', img: '/casefiles/terminal-vibe.svg' },
+  { id: '2', title: 'Neon Tracker', color: 'rgba(0,20,0,1)', img: '/casefiles/neon-tracker.svg' },
+  { id: '3', title: 'Syntax Error', color: 'rgba(20,0,0,1)', img: '/casefiles/syntax-error.svg' },
+  { id: '4', title: 'Git Pushed', color: 'rgba(0,0,20,1)', img: '/casefiles/git-pushed.svg' }
 ];
 
 export default function ProjectSlider() {

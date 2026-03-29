@@ -16,7 +16,7 @@ export default function TechStack() {
             >
               {item}
             </span>
-            <span className="text-accent/40 font-mono mx-6 text-xs md:text-sm">//</span>
+            <span className="text-accent/40 font-mono mx-6 text-xs md:text-sm">{'//'}</span>
           </div>
         ))}
       </div>

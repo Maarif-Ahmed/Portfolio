@@ -2,42 +2,65 @@
 
 import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
+import { useAudio } from '@/context/AudioContext';
 
-const chars = '!<>-_\\\\/[]{}—=+*^?#_';
+const CHARS = '!<>-_\\/[]{}=+*^?#_';
 
-export default function DecipherText({ text, delay = 0, className = '' }: { text: string, delay?: number, className?: string }) {
+interface DecipherTextProps {
+  text: string;
+  delay?: number;
+  className?: string;
+}
+
+export default function DecipherText({ text, delay = 0, className = '' }: DecipherTextProps) {
   const [displayText, setDisplayText] = useState(text.replace(/[^\s]/g, '_'));
-  const targetTextRef = useRef(text);
-  const containerRef = useRef<HTMLSpanElement>(null);
+  const lastRevealRef = useRef(0);
+  const { playTypingTick } = useAudio();
 
   useEffect(() => {
-    const targetText = targetTextRef.current;
-    
-    const timeout = setTimeout(() => {
-      gsap.to({}, {
-        duration: 1.5,
-        onUpdate: function() {
-          const progress = this.progress();
-          const revealCount = Math.floor(progress * targetText.length);
-          
-          let currentStr = "";
-          for(let i=0; i<targetText.length; i++) {
-             if (i < revealCount) {
-                 currentStr += targetText[i];
-             } else if (targetText[i] === " ") {
-                 currentStr += " ";
-             } else {
-                 currentStr += chars[Math.floor(Math.random() * chars.length)];
-             }
+    lastRevealRef.current = 0;
+    setDisplayText(text.replace(/[^\s]/g, '_'));
+
+    const tween = gsap.to({ progress: 0 }, {
+      progress: 1,
+      duration: 1.5,
+      delay,
+      ease: 'power2.inOut',
+      onUpdate() {
+        const progress = this.targets()[0] as { progress: number };
+        const revealCount = Math.floor(progress.progress * text.length);
+
+        if (revealCount > lastRevealRef.current) {
+          for (let index = lastRevealRef.current; index < revealCount; index += 1) {
+            if (text[index] && text[index] !== ' ') {
+              playTypingTick();
+            }
           }
-          setDisplayText(currentStr);
-        },
-        ease: 'power2.inOut'
-      });
-    }, delay * 1000);
+          lastRevealRef.current = revealCount;
+        }
 
-    return () => clearTimeout(timeout);
-  }, [delay]);
+        let current = '';
+        for (let index = 0; index < text.length; index += 1) {
+          if (index < revealCount) {
+            current += text[index];
+          } else if (text[index] === ' ') {
+            current += ' ';
+          } else {
+            current += CHARS[Math.floor(Math.random() * CHARS.length)];
+          }
+        }
 
-  return <span ref={containerRef} className={className}>{displayText}</span>;
+        setDisplayText(current);
+      },
+      onComplete() {
+        setDisplayText(text);
+      },
+    });
+
+    return () => {
+      tween.kill();
+    };
+  }, [delay, playTypingTick, text]);
+
+  return <span className={className}>{displayText}</span>;
 }

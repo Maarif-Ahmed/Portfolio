@@ -26,7 +26,7 @@ const LOADING_LINES = [
   '> Loading modules: [gsap, framer-motion, lenis]',
   '> Compiling TypeScript... OK',
   '> Mounting DOM tree...',
-  '> Fetching project data... ████████░░ 80%',
+  '> Fetching project data... [########..] 80%',
   '> Resolving dependencies...',
   '> Injecting styles... OK',
   '> Rendering viewport...',

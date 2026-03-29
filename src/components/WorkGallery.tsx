@@ -1,310 +1,355 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { useMemo, useRef } from 'react';
 import gsap from 'gsap';
 import ScrollTrigger from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 import { useRouter } from 'next/navigation';
-import { useTransitionContext } from '@/context/TransitionContext';
 import { useAudio } from '@/context/AudioContext';
-import Magnetic from './Magnetic';
+import { useMotionPreference } from '@/context/MotionContext';
+import { useSudo } from '@/context/SudoContext';
+import { useTransitionContext } from '@/context/TransitionContext';
+import { getVisibleProjects } from '@/lib/projects';
+import ProjectShader, { type ProjectShaderHandle } from './ProjectShader';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const CODE_SNIPPETS: Record<string, string[]> = {
+const CASEFILE_GEOMETRY = [
+  {
+    shell: 'md:col-start-1 md:col-span-3 md:row-start-1 md:row-span-3 md:translate-y-10',
+    number: 'right-5 top-6 md:right-8 md:top-8',
+    trace: 'max-w-xl',
+  },
+  {
+    shell: 'md:col-start-4 md:col-span-3 md:row-start-1 md:row-span-2 md:-translate-y-6 md:ml-8',
+    number: 'right-4 top-5 md:right-6 md:top-6',
+    trace: 'max-w-md',
+  },
+  {
+    shell: 'md:col-start-5 md:col-span-2 md:row-start-3 md:row-span-3 md:translate-y-12 md:-ml-6',
+    number: 'right-3 top-5 md:right-5 md:top-6',
+    trace: 'max-w-sm',
+  },
+  {
+    shell: 'md:col-start-1 md:col-span-4 md:row-start-4 md:row-span-3 md:-translate-y-4 md:mr-10',
+    number: 'right-4 top-5 md:right-8 md:top-8',
+    trace: 'max-w-2xl',
+  },
+  {
+    shell: 'md:col-start-3 md:col-span-3 md:row-start-6 md:row-span-2 md:translate-y-8 md:ml-12',
+    number: 'right-4 top-5 md:right-6 md:top-6',
+    trace: 'max-w-lg',
+  },
+] as const;
+
+const SIGNAL_TRACES: Record<string, string[]> = {
   '1': [
-    'import { Terminal } from "./core";',
-    'const shell = new Terminal({',
-    '  theme: "hacker",',
-    '  fontSize: 14,',
-    '  cursorBlink: true,',
-    '});',
-    '',
-    'shell.on("input", (cmd) => {',
-    '  const result = exec(cmd);',
-    '  shell.write(result);',
-    '});',
-    '',
-    'export const dashboard = {',
-    '  cpu: getCpuUsage(),',
-    '  mem: getMemUsage(),',
-    '  net: getNetStats(),',
-    '};',
+    'boot --shell terminal_vibe',
+    'attach viewport.telemetry --persist',
+    'render chrome with tactile latency budget',
   ],
   '2': [
-    'interface Bug {',
-    '  id: string;',
-    '  severity: "low" | "high";',
-    '  assignee: string;',
-    '  glow: boolean;',
-    '}',
-    '',
-    'const tracker = new BugTracker({',
-    '  darkMode: true,',
-    '  neonAccent: "#39ff14",',
-    '});',
-    '',
-    'tracker.on("resolve", (bug) => {',
-    '  confetti.launch();',
-    '  notify(bug.assignee);',
-    '});',
+    'triage queue --signal high',
+    'reroute beige dashboard output',
+    'promote bug pressure to first-class UI',
   ],
   '3': [
-    'try {',
-    '  const app = await build({',
-    '    entry: "./src/index.ts",',
-    '    target: "es2024",',
-    '    minify: true,',
-    '  });',
-    '  deploy(app);',
-    '} catch (e) {',
-    '  console.error("debug_night");',
-    '  debugger;',
-    '  // 6 hours later...',
-    '  fixIt(e);',
-    '  celebrate();',
-    '}',
+    'capture rollback artifacts',
+    'treat debugging as narrative material',
+    'leave the tension visible on purpose',
   ],
   '4': [
-    'const commits = await git.log({',
-    '  maxCount: 1000,',
-    '  format: "%H %s",',
-    '});',
-    '',
-    'const graph = commits.map(c => ({',
-    '  hash: c.hash.slice(0, 7),',
-    '  message: c.message,',
-    '  time: c.date,',
-    '  branch: c.refs,',
-    '}));',
-    '',
-    'render(<CommitGraph',
-    '  data={graph}',
-    '  animate={true}',
-    '/>);',
+    'synthesize contribution terrain',
+    'light geometry like silent telemetry',
+    'keep the sculpture quieter than the hype',
+  ],
+  '5': [
+    'sudo unlock neon_abyss.tmp',
+    'allow unstable color behavior',
+    'ship the weird branch anyway',
   ],
 };
 
-const projects = [
-  { id: '1', title: 'Terminal Vibe', desc: 'A CLI-based hacker dashboard simulator.', img: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop' },
-  { id: '2', title: 'Neon Tracker', desc: 'A dark-mode bug tracker that glows.', img: 'https://images.unsplash.com/photo-1518098268026-4e89f1a2cd8e?q=80&w=2574&auto=format&fit=crop' },
-  { id: '3', title: 'Syntax Error', desc: 'A portfolio showcasing my longest debugging sessions.', img: 'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=2670&auto=format&fit=crop' },
-  { id: '4', title: 'Git Pushed', desc: 'A visual graph of my commit history.', img: 'https://images.unsplash.com/photo-1470071131384-001b85755b36?q=80&w=2670&auto=format&fit=crop' },
-];
+const FLAGSHIP_CAPTURE_BARS = [20, 28, 42, 36, 54, 32, 46] as const;
 
 export default function WorkGallery() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const desktopImagesRef = useRef<(HTMLDivElement | null)[]>([]);
-  const mobileImagesRef = useRef<(HTMLDivElement | null)[]>([]);
-  const numbersRef = useRef<(HTMLDivElement | null)[]>([]);
+  const archiveRef = useRef<HTMLElement>(null);
+  const warningBeaconRef = useRef<HTMLDivElement>(null);
+  const previewPortsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const shaderPortsRef = useRef<(ProjectShaderHandle | null)[]>([]);
 
   const router = useRouter();
-  const { startFlipTransition, triggerLoader } = useTransitionContext();
   const { playBlip } = useAudio();
+  const { motionReduced } = useMotionPreference();
+  const { sudoMode } = useSudo();
+  const { startFlipTransition, triggerLoader } = useTransitionContext();
+  const caseFiles = useMemo(() => getVisibleProjects(sudoMode), [sudoMode]);
 
-  const handleProjectClick = (index: number, project: typeof projects[0], source: 'mobile' | 'desktop') => {
+  const launchCaseFile = (caseId: string, previewUrl: string, previewPort: HTMLDivElement | null) => {
     playBlip();
-    const el = source === 'mobile' ? mobileImagesRef.current[index] : desktopImagesRef.current[index];
-    const targetPath = `/work/${project.id}`;
+    const targetPath = `/work/${caseId}`;
 
     triggerLoader(targetPath, () => {
-      if (el) {
-        startFlipTransition(el, project.img, '0px');
+      if (previewPort) {
+        startFlipTransition(previewPort, previewUrl, '0px');
       }
+
       router.push(targetPath);
     });
   };
 
-  const handleMouseEnter = (index: number) => {
-    const el = desktopImagesRef.current[index];
-    if (el) {
-      gsap.to(el, {
-        filter: 'contrast(120%) brightness(120%) drop-shadow(2px 0px 0px #f00) drop-shadow(-2px 0px 0px #0ff)',
-        duration: 0.1,
-        repeat: 3,
-        yoyo: true,
-        ease: 'power2.inOut',
-      });
-    }
-  };
-
-  const handleMouseLeave = (index: number) => {
-    const el = desktopImagesRef.current[index];
-    if (el) {
-      gsap.to(el, {
-        filter: 'contrast(100%) brightness(100%) drop-shadow(0px 0px 0px transparent)',
-        duration: 0.3,
-      });
-    }
+  const armShader = (caseIndex: number, isArmed: boolean) => {
+    shaderPortsRef.current[caseIndex]?.setHovered(isArmed);
   };
 
   useGSAP(() => {
-    let mm = gsap.matchMedia();
+    const archiveShell = archiveRef.current;
+    const warningBeacon = warningBeaconRef.current;
 
-    mm.add("(min-width: 1024px)", () => {
-      const container = containerRef.current;
-      const track = trackRef.current;
-      if (!container || !track) return;
+    if (!archiveShell || !warningBeacon || motionReduced) {
+      return;
+    }
 
-      const scrollDist = track.scrollWidth - window.innerWidth;
+    const setWarningOpacity = gsap.quickSetter(warningBeacon, 'opacity');
+    const setWarningLift = gsap.quickSetter(warningBeacon, 'yPercent');
+    let warningReleaseAt = 0;
 
-      gsap.to(track, {
-        x: -scrollDist,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: container,
-          pin: true,
-          scrub: 1,
-          end: () => '+=' + scrollDist,
-          invalidateOnRefresh: true,
-          onUpdate: (self) => {
-            numbersRef.current.forEach((num) => {
-              if (num) {
-                gsap.set(num, { x: self.progress * 100 - 50 });
-              }
-            });
-          },
-        },
-      });
+    const velocityProbe = ScrollTrigger.create({
+      trigger: archiveShell,
+      start: 'top bottom',
+      end: 'bottom top',
+      onUpdate: (archiveScene) => {
+        if (Math.abs(archiveScene.getVelocity()) > 2100) {
+          warningReleaseAt = performance.now() + 260;
+        }
+
+        const warningVisible = performance.now() < warningReleaseAt ? 1 : 0;
+        setWarningOpacity(warningVisible);
+        setWarningLift((1 - warningVisible) * 18);
+        warningBeacon.classList.toggle('hardware-jitter', warningVisible > 0.5);
+      },
     });
 
-    const handleLoad = () => ScrollTrigger.refresh();
-    window.addEventListener('load', handleLoad);
-    const timer = setTimeout(() => ScrollTrigger.refresh(), 500);
-
     return () => {
-      window.removeEventListener('load', handleLoad);
-      clearTimeout(timer);
+      velocityProbe.kill();
+      warningBeacon.classList.remove('hardware-jitter');
     };
-  }, { scope: containerRef });
+  }, { dependencies: [caseFiles.length, motionReduced], scope: archiveRef });
 
   return (
-    <>
-      <section className="lg:hidden w-full bg-background px-4 py-12 sm:py-16 flex flex-col items-center">
-        <div className="flex w-[90vw] max-w-2xl flex-col gap-16">
-          {projects.map((project, index) => (
-            <article
-              key={`mobile-${project.id}`}
-              className="bg-black border border-accent/40 shadow-[0_0_15px_rgba(224,224,224,0.05)]"
-            >
-              <div className="w-full h-7 border-b border-accent/40 bg-background flex items-center px-3">
-                <div className="flex gap-1.5">
-                  <div className="w-2.5 h-2.5 border border-accent/40 rounded-full" />
-                  <div className="w-2.5 h-2.5 border border-accent/40 rounded-full" />
-                  <div className="w-2.5 h-2.5 bg-accent border border-accent rounded-full" />
-                </div>
-                <div className="mx-auto text-[8px] uppercase tracking-widest text-accent/70">bash - /work/{project.id}</div>
+    <section id="work" ref={archiveRef} className="home-panel section-lock-shell relative overflow-visible bg-transparent px-5 py-20 md:px-20 md:py-64">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(224,224,224,0.38),rgba(224,224,224,0.12),transparent)] opacity-0 section-signal-line" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_12%,rgba(224,224,224,0.04),transparent_18%),radial-gradient(circle_at_72%_22%,rgba(255,255,255,0.03),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.018)_0%,transparent_24%,transparent_100%)] opacity-0 section-signal-field" />
+      <div className="pointer-events-none absolute inset-x-[12%] top-0 h-28 bg-[linear-gradient(180deg,rgba(255,255,255,0.0)_0%,rgba(224,224,224,0.035)_35%,rgba(224,224,224,0.08)_55%,rgba(255,255,255,0.0)_100%)] opacity-0 blur-2xl section-signal-beam" />
+      <div className="pointer-events-none absolute left-[10%] top-[16%] h-56 w-56 rounded-full bg-white/[0.03] blur-3xl" />
+      <div className="pointer-events-none absolute right-[8%] top-[38%] h-44 w-44 rounded-full bg-white/[0.03] blur-3xl" />
+      <div className="mx-auto max-w-[1600px]">
+        <div className="section-lock-copy relative grid gap-8 lg:grid-cols-[1.06fr_0.82fr] lg:items-end lg:gap-16">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.45em] text-white/42 md:text-xs">
+              casefile archive / evidence wall
+            </p>
+            <h2 className="section-lock-heading mt-5 max-w-[11ch] font-sans text-[clamp(2.8rem,12vw,5.8rem)] font-black uppercase leading-[0.84] tracking-[-0.09em] text-white md:mt-6 md:text-[clamp(3.3rem,9vw,10rem)]">
+              PROOF OVER
+              <br />
+              THUMBNAILS<span className="text-white/82">.</span>
+            </h2>
+          </div>
+
+          <div className="space-y-7 border-t border-white/10 pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+            <p className="max-w-2xl text-sm leading-7 text-white/64 md:text-base md:leading-8">
+              The archive should feel like evidence already washing into view. One flagship case anchors the room, the others drift around it, and the metadata stays readable enough to follow the thinking behind each build.
+            </p>
+
+            <div className="grid gap-4 border-t border-white/10 pt-4 font-mono text-[10px] uppercase tracking-[0.28em] text-white/48 md:grid-cols-3">
+              <div className="flow-divider pb-4 md:border-b-0 md:border-r md:border-white/10 md:pb-0 md:pr-4">
+                <p className="text-white/48">featured</p>
+                <p className="mt-3 leading-6 text-white/72">one dominant casefile with supporting evidence</p>
               </div>
-
-              <div
-                ref={(el) => {
-                  mobileImagesRef.current[index] = el;
-                }}
-                className="relative aspect-video w-full bg-cover bg-center opacity-45"
-                style={{ backgroundImage: `url(${project.img})` }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-transparent" />
-                <div className="absolute bottom-4 left-4">
-                  <span className="text-[10px] tracking-widest uppercase text-accent/70 block mb-1">{'>'} SYS_ID: 0{project.id}</span>
-                  <h3 className="text-2xl font-black uppercase text-foreground leading-tight">{project.title}</h3>
-                </div>
+              <div className="flow-divider pb-4 md:border-b-0 md:border-r md:border-white/10 md:pb-0 md:px-4">
+                <p className="text-white/48">reading flow</p>
+                <p className="mt-3 leading-6 text-white/72">metrics, traces, and visual proof stay in frame</p>
               </div>
-
-              <div className="p-4 sm:p-6">
-                <p className="text-sm opacity-80 mb-5 leading-relaxed">{project.desc}</p>
-                <button
-                  onClick={() => handleProjectClick(index, project, 'mobile')}
-                  className="w-full text-xs font-bold uppercase tracking-widest border border-accent px-4 py-3 hover:bg-accent hover:text-black transition-all"
-                >
-                  [ OPEN_PROJECT ]
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {/* Desktop horizontal scroll */}
-      <section
-        ref={containerRef}
-        className="hidden lg:flex h-screen w-full bg-background relative items-center overflow-hidden"
-      >
-        <div ref={trackRef} className="flex h-full items-center gap-16 pl-[10vw] pr-[10vw]" style={{ width: 'max-content' }}>
-          {projects.map((project, index) => (
-            <div
-              key={`desktop-${project.id}`}
-              className="w-[45vw] h-[65vh] flex-shrink-0 bg-black flex flex-col relative overflow-hidden group border border-accent/40 hover:border-accent opacity-90 hover:opacity-100 transition-all shadow-[0_0_15px_rgba(224,224,224,0.05)] hover:shadow-[0_0_30px_rgba(224,224,224,0.1)]"
-              data-cursor="EXECUTE ()"
-            >
-              <div
-                ref={(el) => {
-                  numbersRef.current[index] = el;
-                }}
-                className="absolute -bottom-6 -right-6 md:-bottom-10 md:-right-10 text-[25vw] md:text-[20vw] font-black text-accent/5 select-none pointer-events-none z-0"
-              >
-                0{index + 1}
-              </div>
-
-              <div className="w-full h-7 border-b border-accent/40 group-hover:border-accent bg-background shrink-0 flex items-center px-3 relative z-20 transition-colors">
-                <div className="flex gap-1.5">
-                  <div className="w-2.5 h-2.5 border border-accent/40 rounded-full group-hover:bg-accent group-hover:border-accent transition-colors" />
-                  <div className="w-2.5 h-2.5 border border-accent/40 rounded-full group-hover:border-accent transition-colors" />
-                  <div className="w-2.5 h-2.5 bg-accent border border-accent rounded-full" />
-                </div>
-                <div className="mx-auto text-[8px] md:text-[10px] uppercase tracking-widest text-accent/50 group-hover:text-accent/80 transition-colors">
-                  bash - /work/{project.id}
-                </div>
-              </div>
-
-              <div
-                ref={(el) => {
-                  desktopImagesRef.current[index] = el;
-                }}
-                onMouseEnter={() => handleMouseEnter(index)}
-                onMouseLeave={() => handleMouseLeave(index)}
-                className="absolute inset-0 top-7 w-full h-[calc(100%-1.75rem)] bg-cover bg-center opacity-20 group-hover:opacity-40 transition-opacity duration-700 pointer-events-none"
-                style={{ backgroundImage: `url(${project.img})` }}
-              />
-
-              <div className="absolute inset-0 top-7 w-full h-[calc(100%-1.75rem)] overflow-hidden pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-[15]">
-                <div className="code-scroll-overlay p-4 text-[10px] leading-relaxed" style={{ color: 'rgba(224, 224, 224, 0.25)' }}>
-                  {[...Array(3)].map((_, rep) => (
-                    <div key={rep}>
-                      {(CODE_SNIPPETS[project.id] || []).map((line, li) => (
-                        <div key={`${rep}-${li}`} className="whitespace-pre font-mono">
-                          {line || '\u00A0'}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="relative z-10 p-6 md:p-10 h-full flex flex-col justify-end pointer-events-none">
-                <span className="text-[10px] md:text-xs tracking-widest uppercase mb-2 block text-accent/60 group-hover:text-accent transition-colors">
-                  {'>'} SYS_ID: 0{project.id}
-                </span>
-                <h3 className="text-3xl md:text-5xl font-black leading-none mb-2 uppercase text-foreground">{project.title}</h3>
-                <p className="text-sm md:text-base max-w-md opacity-50 group-hover:opacity-80 transition-opacity">{project.desc}</p>
-
-                <div className="mt-6 pointer-events-auto">
-                  <Magnetic>
-                    <button
-                      onClick={() => handleProjectClick(index, project, 'desktop')}
-                      onMouseEnter={playBlip}
-                      className="text-[10px] md:text-xs font-bold uppercase tracking-widest border border-accent px-4 py-1.5 hover:bg-accent hover:text-black transition-all cursor-pointer relative z-20"
-                    >
-                      [ MORE ]
-                    </button>
-                  </Magnetic>
-                </div>
+              <div className="md:pl-4">
+                <p className="text-white/48">motion</p>
+                <p className="mt-3 leading-6 text-white/72">temperamental enough to feel live, calm enough to read</p>
               </div>
             </div>
-          ))}
+          </div>
+
+          <div
+            ref={warningBeaconRef}
+            className="pointer-events-none absolute right-0 top-0 hidden border border-white/16 bg-black/88 px-4 py-3 font-mono text-[10px] uppercase tracking-[0.35em] text-white/62 opacity-0 md:block"
+          >
+            [ SIGNAL_WARNING: VELOCITY SPIKE ]
+          </div>
         </div>
-      </section>
-    </>
+
+        <div className="mt-14 grid grid-cols-1 gap-8 md:mt-20 md:auto-rows-[8rem] md:grid-cols-6 md:gap-x-6 md:gap-y-8 lg:auto-rows-[9rem]">
+          {caseFiles.map((caseFile, caseIndex) => {
+            const geometry = CASEFILE_GEOMETRY[caseIndex % CASEFILE_GEOMETRY.length];
+            const targetPath = `/work/${caseFile.id}`;
+            const traceLines = SIGNAL_TRACES[caseFile.id] ?? [];
+            const isFlagship = caseIndex === 0;
+            const hoverAccentClass = caseFile.isSecret
+              ? 'group-hover:text-[#FF00FF] group-focus-visible:text-[#FF00FF]'
+              : 'group-hover:text-[#00F0FF] group-focus-visible:text-[#00F0FF]';
+            const hoverAccentSoftClass = caseFile.isSecret
+              ? 'group-hover:text-[#FF00FF]/78 group-focus-visible:text-[#FF00FF]/78'
+              : 'group-hover:text-[#00F0FF]/78 group-focus-visible:text-[#00F0FF]/78';
+            const hoverBorderClass = caseFile.isSecret
+              ? 'group-hover:border-[#FF00FF]/34 group-focus-visible:border-[#FF00FF]/34'
+              : 'group-hover:border-[#00F0FF]/34 group-focus-visible:border-[#00F0FF]/34';
+            const hoverSignalClass = caseFile.isSecret
+              ? 'group-hover:opacity-100 group-focus-visible:opacity-100 bg-[radial-gradient(circle_at_top_right,rgba(255,0,255,0.12),transparent_34%)]'
+              : 'group-hover:opacity-100 group-focus-visible:opacity-100 bg-[radial-gradient(circle_at_top_right,rgba(0,240,255,0.12),transparent_34%)]';
+
+            return (
+              <article
+                key={caseFile.id}
+                className={`relative mx-auto w-full max-w-[34rem] md:mx-0 md:max-w-none ${geometry.shell}`}
+              >
+                <Link
+                  href={targetPath}
+                  data-cursor="OPEN_CASEFILE()"
+                  className={`group relative block h-full min-h-[22rem] overflow-hidden border border-white/14 bg-black p-4 text-left transition-transform duration-500 hover:-translate-y-1 focus-visible:-translate-y-1 ${hoverBorderClass} sm:min-h-[24rem] sm:p-5 md:min-h-0 lg:p-10`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    launchCaseFile(caseFile.id, caseFile.img, previewPortsRef.current[caseIndex]);
+                  }}
+                  onMouseEnter={() => {
+                    playBlip();
+                    armShader(caseIndex, true);
+                  }}
+                  onMouseLeave={() => armShader(caseIndex, false)}
+                  onFocus={() => {
+                    playBlip();
+                    armShader(caseIndex, true);
+                  }}
+                  onBlur={() => armShader(caseIndex, false)}
+                >
+                  <div
+                    ref={(node) => {
+                      previewPortsRef.current[caseIndex] = node;
+                    }}
+                    className="absolute inset-0 opacity-60 grayscale brightness-[0.72] contrast-[0.82] saturate-[0.72] transition-[opacity,filter] duration-500 group-hover:opacity-88 group-hover:grayscale-0 group-hover:brightness-100 group-hover:contrast-[1.16] group-hover:saturate-100 group-focus-visible:opacity-88 group-focus-visible:grayscale-0 group-focus-visible:brightness-100 group-focus-visible:contrast-[1.16] group-focus-visible:saturate-100"
+                  >
+                    <ProjectShader
+                      imageUrl={caseFile.img}
+                      ref={(shaderPort) => {
+                        shaderPortsRef.current[caseIndex] = shaderPort;
+                      }}
+                      />
+                    </div>
+
+                  {isFlagship && (
+                    <div className="pointer-events-none absolute inset-0 z-[1]">
+                      <div className="absolute inset-x-[8%] top-[12%] h-px bg-[linear-gradient(90deg,transparent,rgba(224,224,224,0.44),transparent)] signal-sweep opacity-70" />
+                      <div className="absolute right-6 top-6 flex items-center gap-2 font-mono text-[8px] uppercase tracking-[0.32em] text-white/54 md:text-[9px]">
+                        <span className="h-1.5 w-1.5 rounded-full bg-white/62 signal-flicker" />
+                        live_capture
+                      </div>
+                      <div className="absolute left-6 top-16 max-w-[14rem] border border-white/10 bg-black/48 px-3 py-3 font-mono text-[8px] uppercase tracking-[0.24em] text-white/44 md:text-[9px]">
+                        <p className="text-white/58">evidence feed</p>
+                        <p className="mt-2 leading-5 text-white/72">Telemetry, case metrics, and product traces stay in frame while the archive opens.</p>
+                      </div>
+                      <div className="absolute bottom-24 right-6 border border-white/10 bg-black/46 px-3 py-3 font-mono text-[8px] uppercase tracking-[0.24em] text-white/44 md:text-[9px]">
+                        <p className="text-white/58">capture rail</p>
+                        <div className="mt-3 flex items-end gap-1.5">
+                          {FLAGSHIP_CAPTURE_BARS.map((barHeight, barIndex) => (
+                            <span
+                              key={`capture-bar-${barHeight}-${barIndex}`}
+                              className="data-bar w-1.5 bg-[linear-gradient(180deg,rgba(224,224,224,0.22),rgba(224,224,224,0.78))]"
+                              style={{
+                                height: `${barHeight}px`,
+                                animationDelay: `${barIndex * 0.08}s`,
+                                animationDuration: `${1.7 + barIndex * 0.07}s`,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.16)_0%,rgba(0,0,0,0.58)_46%,rgba(0,0,0,0.92)_100%)]" />
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_34%)]" />
+                  <div className={`absolute inset-0 opacity-0 transition-opacity duration-500 ${hoverSignalClass}`} />
+
+                  <div
+                    className={`pointer-events-none absolute ${geometry.number} select-none font-sans text-[clamp(5rem,14vw,10rem)] font-black leading-none tracking-[-0.1em] text-white/8`}
+                  >
+                    0{caseIndex + 1}
+                  </div>
+
+                  <div className="relative z-10 flex h-full flex-col justify-between">
+                    <div className="flex items-start justify-between gap-4 font-mono text-[9px] uppercase tracking-[0.32em] text-white/56 md:text-[10px]">
+                      <div>
+                        <p className="text-white/38">/{caseFile.fileName}</p>
+                        <p className={`mt-2 text-white/44 transition-colors duration-300 ${hoverAccentSoftClass}`}>{caseFile.category}</p>
+                        {isFlagship && (
+                          <p className={`mt-3 inline-flex border border-white/12 bg-white/[0.03] px-2 py-1 text-[8px] tracking-[0.28em] text-white/56 transition-colors duration-300 ${hoverAccentClass}`}>
+                            featured_casefile
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right text-white/34">
+                        <p>{caseFile.year}</p>
+                        <p className="mt-2">case_{caseFile.id}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-10">
+                      <h3 className="max-w-4xl font-sans text-[clamp(1.65rem,10vw,3rem)] font-black uppercase leading-[0.88] tracking-[-0.06em] text-white md:text-[clamp(2rem,5vw,4.5rem)]">
+                        {caseFile.title}
+                        <span className={`text-white/82 transition-colors duration-300 ${hoverAccentClass}`}>.</span>
+                      </h3>
+                      <p className="mt-4 max-w-2xl text-sm leading-6 text-white/68 md:mt-5 md:text-base md:leading-7">
+                        {caseFile.subtitle}
+                      </p>
+
+                      <div className={`mt-6 border border-white/10 bg-black/58 p-4 font-mono text-[10px] uppercase tracking-[0.22em] text-white/50 md:mt-8 ${geometry.trace}`}>
+                        {traceLines.map((traceLine) => (
+                          <p key={traceLine} className="truncate leading-6">
+                            {traceLine}
+                          </p>
+                        ))}
+                      </div>
+
+                      {isFlagship && (
+                        <div className="mt-5 grid gap-3 border border-white/10 bg-white/[0.025] p-4 font-mono text-[9px] uppercase tracking-[0.26em] text-white/46 md:grid-cols-3">
+                          {caseFile.metrics.map((metricPatch) => (
+                            <div key={metricPatch.label} className="border border-white/8 bg-black/36 px-3 py-3">
+                              <p className={`text-white/56 transition-colors duration-300 ${hoverAccentSoftClass}`}>{metricPatch.label}</p>
+                              <p className="mt-3 text-white/78">{metricPatch.value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-8 flex flex-wrap items-end justify-between gap-6">
+                      <div className="flex flex-wrap gap-6">
+                        {caseFile.metrics.slice(0, 2).map((metricPatch) => (
+                          <div key={metricPatch.label} className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/46">
+                            <p>{metricPatch.label}</p>
+                            <p className="mt-2 text-white/78">{metricPatch.value}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className={`font-mono text-[10px] uppercase tracking-[0.32em] text-white/44 transition-colors duration-300 ${hoverAccentClass}`}>
+                        [ OPEN CASEFILE ]
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
   );
 }
-

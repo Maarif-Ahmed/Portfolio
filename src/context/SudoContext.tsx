@@ -1,33 +1,56 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useKeySequence } from '@/hooks/useKeySequence';
 
 interface SudoContextType {
   sudoMode: boolean;
-  setSudoMode: (val: boolean) => void;
+  activationCount: number;
+  setSudoMode: (value: boolean) => void;
   toggleSudoMode: () => void;
 }
 
 const SudoContext = createContext<SudoContextType | undefined>(undefined);
 
 export const SudoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [sudoMode, setSudoMode] = useState(false);
+  const pathname = usePathname();
+  const [sudoMode, setSudoModeState] = useState(false);
+  const [activationCount, setActivationCount] = useState(0);
+  const sudoModeRef = useRef(false);
 
-  const toggleSudoMode = () => setSudoMode(prev => !prev);
+  const setSudoMode = useCallback((value: boolean) => {
+    if (value === sudoModeRef.current) return;
+    sudoModeRef.current = value;
+    setSudoModeState(value);
+    if (value) {
+      setActivationCount((current) => current + 1);
+    }
+  }, []);
 
-  // Keyboard shortcut: Alt + S to toggle sudo mode
+  const toggleSudoMode = useCallback(() => {
+    setSudoMode(!sudoModeRef.current);
+  }, [setSudoMode]);
+
+  useKeySequence('sudo', () => {
+    if (pathname === '/') {
+      toggleSudoMode();
+    }
+  });
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.altKey && e.key.toLowerCase() === 's') {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey && event.key.toLowerCase() === 's') {
         toggleSudoMode();
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [toggleSudoMode]);
 
   return (
-    <SudoContext.Provider value={{ sudoMode, setSudoMode, toggleSudoMode }}>
+    <SudoContext.Provider value={{ sudoMode, activationCount, setSudoMode, toggleSudoMode }}>
       {children}
     </SudoContext.Provider>
   );

@@ -1,0 +1,67 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#000000"/>
+      <stop offset="40%" stop-color="#071218"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </linearGradient>
+    <radialGradient id="pulse" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(420 260) rotate(90) scale(320 440)">
+      <stop stop-color="#00F0FF" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#00F0FF" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" stroke="#E0E0E0" stroke-opacity="0.06"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <rect width="1600" height="1000" fill="url(#pulse)"/>
+  <rect width="1600" height="1000" fill="url(#grid)" opacity="0.28"/>
+  <g opacity="0.2">
+    <path d="M124 164H1476" stroke="#E0E0E0" stroke-width="2"/>
+    <path d="M124 836H1476" stroke="#E0E0E0" stroke-width="2"/>
+  </g>
+  <text x="140" y="320" font-family="Arial, Helvetica, sans-serif" font-size="206" font-weight="700" fill="#E0E0E0" fill-opacity="0.06" letter-spacing="-12">TRACK</text>
+  <g>
+    <rect x="170" y="214" width="416" height="284" fill="#051119" stroke="#00F0FF" stroke-opacity="0.72"/>
+    <rect x="170" y="538" width="416" height="182" fill="#061017" stroke="#00F0FF" stroke-opacity="0.3"/>
+    <rect x="634" y="214" width="806" height="182" fill="#031016" stroke="#00F0FF" stroke-opacity="0.56"/>
+    <rect x="634" y="438" width="386" height="282" fill="#030D12" stroke="#00F0FF" stroke-opacity="0.32"/>
+    <rect x="1054" y="438" width="386" height="282" fill="#030D12" stroke="#00F0FF" stroke-opacity="0.32"/>
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif" font-weight="700">
+    <text x="198" y="144" font-size="44" letter-spacing="10" fill="#E0E0E0">NEON TRACKER</text>
+    <text x="198" y="892" font-size="22" letter-spacing="8" fill="#00F0FF">MONITORING SURFACE</text>
+    <text x="204" y="324" font-size="88" fill="#00F0FF">12</text>
+    <text x="380" y="324" font-size="88" fill="#E0E0E0">04</text>
+  </g>
+  <g font-family="'Courier New', monospace" font-size="18" fill="#E0E0E0" fill-opacity="0.82">
+    <text x="204" y="254">ACTIVE INCIDENTS</text>
+    <text x="380" y="254">BLOCKED FLOWS</text>
+    <text x="664" y="254">INCIDENT RESPONSE TIMELINE</text>
+    <text x="666" y="478">PRESSURE HISTOGRAM</text>
+    <text x="1084" y="478">TRIAGE STACK</text>
+    <text x="204" y="600">critical // payment_queue stalled</text>
+    <text x="204" y="642">warning // auth timeout drift</text>
+    <text x="204" y="684">notice  // viewport mismatch isolated</text>
+  </g>
+  <g stroke="#00F0FF" stroke-width="4">
+    <path d="M666 344L744 298L826 322L912 270L1008 318L1114 252L1232 300L1344 264L1412 312"/>
+  </g>
+  <g stroke="#E0E0E0" stroke-opacity="0.12" stroke-width="2">
+    <path d="M664 308H1412"/>
+    <path d="M664 344H1412"/>
+    <path d="M664 380H1412"/>
+  </g>
+  <g>
+    <rect x="674" y="540" width="52" height="132" fill="#00F0FF" fill-opacity="0.12" stroke="#00F0FF" stroke-opacity="0.6"/>
+    <rect x="760" y="492" width="52" height="180" fill="#00F0FF" fill-opacity="0.2" stroke="#00F0FF" stroke-opacity="0.7"/>
+    <rect x="846" y="570" width="52" height="102" fill="#00F0FF" fill-opacity="0.1" stroke="#00F0FF" stroke-opacity="0.42"/>
+    <rect x="932" y="518" width="52" height="154" fill="#00F0FF" fill-opacity="0.16" stroke="#00F0FF" stroke-opacity="0.56"/>
+  </g>
+  <g font-family="'Courier New', monospace" font-size="18" fill="#E0E0E0">
+    <text x="1084" y="548">P1 // auth timeout</text>
+    <text x="1084" y="594">P2 // routing anomaly</text>
+    <text x="1084" y="640">P3 // sync drift</text>
+    <text x="1084" y="686">P4 // viewport mismatch</text>
+  </g>
+</svg>

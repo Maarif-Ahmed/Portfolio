@@ -1,0 +1,46 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#000000"/>
+      <stop offset="52%" stop-color="#0C0D11"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </linearGradient>
+    <radialGradient id="wash" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1210 220) rotate(90) scale(320 460)">
+      <stop stop-color="#00F0FF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#00F0FF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <rect width="1600" height="1000" fill="url(#wash)"/>
+  <text x="126" y="286" font-family="Arial, Helvetica, sans-serif" font-size="196" font-weight="700" fill="#E0E0E0" fill-opacity="0.07" letter-spacing="-12">SYNTAX</text>
+  <text x="408" y="444" font-family="Arial, Helvetica, sans-serif" font-size="196" font-weight="700" fill="#E0E0E0" fill-opacity="0.05" letter-spacing="-12">ERROR</text>
+  <g opacity="0.2">
+    <path d="M132 164H1468" stroke="#E0E0E0" stroke-width="2"/>
+    <path d="M132 836H1468" stroke="#E0E0E0" stroke-width="2"/>
+  </g>
+  <g transform="translate(184 240) rotate(-6 616 250)">
+    <rect x="0" y="0" width="640" height="370" fill="#070A0E" stroke="#00F0FF" stroke-opacity="0.66"/>
+    <g font-family="'Courier New', monospace" font-size="22" fill="#E0E0E0" fill-opacity="0.84">
+      <text x="28" y="68">[trace] user-flow diverged from expected state</text>
+      <text x="28" y="118">[trace] rollback candidate found in transition layer</text>
+      <text x="28" y="168">[trace] visual noise masking readable hierarchy</text>
+      <text x="28" y="218">[trace] simplifying path... done</text>
+      <text x="28" y="268">[trace] confidence restored in final pass</text>
+      <text x="28" y="318">[trace] shipping the honest version</text>
+    </g>
+  </g>
+  <g>
+    <rect x="896" y="296" width="514" height="176" fill="#070A0E" stroke="#00F0FF" stroke-opacity="0.4"/>
+    <rect x="896" y="520" width="514" height="184" fill="#070A0E" stroke="#00F0FF" stroke-opacity="0.26"/>
+    <path d="M932 430L1026 378L1116 416L1224 348L1324 400" stroke="#00F0FF" stroke-width="3"/>
+    <path d="M934 594L1384 542" stroke="#E0E0E0" stroke-opacity="0.14" stroke-width="2"/>
+    <path d="M934 628L1294 594" stroke="#00F0FF" stroke-opacity="0.24" stroke-width="2"/>
+    <path d="M934 662L1206 638" stroke="#E0E0E0" stroke-opacity="0.12" stroke-width="2"/>
+  </g>
+  <path d="M262 714L1454 398" stroke="#00F0FF" stroke-opacity="0.2" stroke-width="2"/>
+  <path d="M238 758L1410 454" stroke="#00F0FF" stroke-opacity="0.1" stroke-width="2"/>
+  <g font-family="Arial, Helvetica, sans-serif" font-weight="700">
+    <text x="182" y="140" font-size="44" letter-spacing="10" fill="#E0E0E0">SYNTAX ERROR</text>
+    <text x="182" y="892" font-size="22" letter-spacing="8" fill="#00F0FF">DEBUGGING TRANSMISSION</text>
+  </g>
+</svg>

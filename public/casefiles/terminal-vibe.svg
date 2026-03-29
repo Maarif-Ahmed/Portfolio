@@ -1,0 +1,65 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#000000"/>
+      <stop offset="45%" stop-color="#041018"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </linearGradient>
+    <radialGradient id="beam" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1160 240) rotate(90) scale(420 520)">
+      <stop stop-color="#00F0FF" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#00F0FF" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="scan" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M0 0H8" stroke="#E0E0E0" stroke-opacity="0.06"/>
+    </pattern>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <rect width="1600" height="1000" fill="url(#beam)"/>
+  <rect width="1600" height="1000" fill="url(#scan)" opacity="0.24"/>
+  <text x="126" y="294" font-family="Arial, Helvetica, sans-serif" font-size="228" font-weight="700" fill="#E0E0E0" fill-opacity="0.07" letter-spacing="-14">TERMINAL</text>
+  <text x="274" y="470" font-family="Arial, Helvetica, sans-serif" font-size="228" font-weight="700" fill="#E0E0E0" fill-opacity="0.05" letter-spacing="-14">VIBE</text>
+  <g opacity="0.22">
+    <path d="M132 164H1468" stroke="#E0E0E0" stroke-width="2"/>
+    <path d="M132 838H1468" stroke="#E0E0E0" stroke-width="2"/>
+  </g>
+  <g transform="translate(184 226)">
+    <rect x="0" y="0" width="968" height="556" fill="#030A0E" stroke="#00F0FF" stroke-opacity="0.74"/>
+    <rect x="0" y="0" width="968" height="60" fill="#07141A" stroke="#E0E0E0" stroke-opacity="0.12"/>
+    <circle cx="34" cy="31" r="8" fill="#E0E0E0" fill-opacity="0.42"/>
+    <circle cx="66" cy="31" r="8" fill="#E0E0E0" fill-opacity="0.22"/>
+    <circle cx="98" cy="31" r="8" fill="#00F0FF" fill-opacity="0.88"/>
+    <text x="132" y="39" font-family="'Courier New', monospace" font-size="18" fill="#E0E0E0" fill-opacity="0.74">root@maarif:~/terminal_vibe</text>
+    <g font-family="'Courier New', monospace" font-size="26" fill="#E0E0E0" fill-opacity="0.86">
+      <text x="42" y="132">$ init shell.chrome --theme plasma-cyan</text>
+      <text x="42" y="182">$ wire hover.audio --mechanical true</text>
+      <text x="42" y="232">$ sync transition.flip --precision locked</text>
+      <text x="42" y="282">$ arm diagnostics.hud --persist</text>
+      <text x="42" y="332">$ render portfolio.surface --cinematic</text>
+    </g>
+    <g>
+      <rect x="566" y="120" width="348" height="148" fill="#071118" stroke="#00F0FF" stroke-opacity="0.48"/>
+      <rect x="566" y="298" width="348" height="190" fill="#061017" stroke="#00F0FF" stroke-opacity="0.28"/>
+      <path d="M596 222H884" stroke="#E0E0E0" stroke-opacity="0.18" stroke-width="2"/>
+      <path d="M596 198H850" stroke="#E0E0E0" stroke-opacity="0.12" stroke-width="2"/>
+      <path d="M596 174H812" stroke="#E0E0E0" stroke-opacity="0.1" stroke-width="2"/>
+      <path d="M598 436L658 404L714 428L782 374L848 412" stroke="#00F0FF" stroke-width="3"/>
+      <path d="M596 454H884" stroke="#E0E0E0" stroke-opacity="0.14" stroke-width="2"/>
+      <path d="M596 420H884" stroke="#E0E0E0" stroke-opacity="0.08" stroke-width="2"/>
+    </g>
+    <g filter="url(#glow)">
+      <path d="M42 430H488" stroke="#00F0FF" stroke-width="4" stroke-opacity="0.82"/>
+      <path d="M42 472H408" stroke="#00F0FF" stroke-width="3" stroke-opacity="0.42"/>
+    </g>
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif" font-weight="700">
+    <text x="182" y="138" font-size="44" letter-spacing="10" fill="#E0E0E0">TERMINAL VIBE</text>
+    <text x="182" y="892" font-size="22" letter-spacing="8" fill="#00F0FF">INTERFACE OPERATING LAYER</text>
+  </g>
+</svg>
