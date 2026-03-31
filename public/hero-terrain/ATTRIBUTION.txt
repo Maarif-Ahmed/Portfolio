@@ -1,0 +1,12 @@
+Hero terrain assets
+
+- Code patterns adapted from Codrops "Creating Dynamic Terrain Deformation with React Three Fiber"
+  https://tympanus.net/codrops/2024/11/27/creating-dynamic-terrain-deformation-with-react-three-fiber/
+  MIT License: see C:\Maarif-Portfolio\.tmp-ref\dynamic-terrain-deformation\LICENSE.txt
+
+- Character model: "Antarctic Man" by Berk Gedik
+  https://sketchfab.com/3d-models/antarctic-man-21d2169f87524d958308c503ebaa1b9f
+  License: CC BY 4.0
+
+- Snow textures: AmbientCG
+  https://ambientcg.com/

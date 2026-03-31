@@ -1,425 +1,44 @@
 'use client';
 
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef } from 'react';
 
 interface AudioContextType {
-  isMuted: boolean;
-  isUnlocked: boolean;
-  toggleMute: () => void;
-  unlockAudio: () => Promise<void>;
-  startAmbient: () => Promise<void>;
-  stopAmbient: () => void;
-  setHeroRoomTone: (progress: number) => Promise<void>;
   playBlip: () => void;
-  playTypingTick: () => void;
-  playGlitchBurst: () => void;
-  playHeroSwell: (intensity?: number) => void;
-  playTransitionTone: () => void;
-  getAudioData: () => number;
-}
-
-interface WindowWithWebkitAudio extends Window {
-  webkitAudioContext?: typeof AudioContext;
-}
-
-interface AmbientNodes {
-  gain: GainNode;
-  filter: BiquadFilterNode;
-  noiseFilter: BiquadFilterNode;
-  oscillators: OscillatorNode[];
-  noise: AudioBufferSourceNode;
-  lfo: OscillatorNode;
-  lfoGain: GainNode;
-}
-
-interface HeroRoomNodes {
-  air: OscillatorNode;
-  body: OscillatorNode;
-  filter: BiquadFilterNode;
-  gain: GainNode;
-  harmonic: OscillatorNode;
-  tremor: OscillatorNode;
-  tremorGain: GainNode;
-  vigil: OscillatorNode;
-  vigilGain: GainNode;
+  playSnowStep: () => void;
 }
 
 const AudioStateContext = createContext<AudioContextType | undefined>(undefined);
 
-function createNoiseBuffer(ctx: AudioContext, durationSeconds: number) {
-  const frameCount = Math.max(1, Math.floor(ctx.sampleRate * durationSeconds));
-  const noiseBuffer = ctx.createBuffer(1, frameCount, ctx.sampleRate);
-  const channel = noiseBuffer.getChannelData(0);
-
-  for (let index = 0; index < frameCount; index += 1) {
-    channel[index] = (Math.random() * 2 - 1) * 0.38;
-  }
-
-  return noiseBuffer;
-}
-
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isMuted, setIsMuted] = useState(false);
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const masterGainRef = useRef<GainNode | null>(null);
-  const masterAnalyserRef = useRef<AnalyserNode | null>(null);
-  const ambientNodesRef = useRef<AmbientNodes | null>(null);
-  const heroRoomNodesRef = useRef<HeroRoomNodes | null>(null);
-  const heroRoomStopTimerRef = useRef<number | null>(null);
-  const isUnlockedRef = useRef(false);
-  const isMutedRef = useRef(false);
-  const lastTypingTickRef = useRef(0);
-  const lastRelayClickRef = useRef(0);
-  const lastHeroSwellRef = useRef(0);
-  const lastTransitionToneRef = useRef(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const lastBlipRef = useRef(0);
+  const lastSnowStepRef = useRef(0);
+  const snowBufferRef = useRef<AudioBuffer | null>(null);
+  const snowStepTrackRef = useRef<AudioBuffer | null>(null);
+  const snowStepOffsetsRef = useRef<number[] | null>(null);
+  const snowStepLoadRef = useRef<Promise<AudioBuffer | null> | null>(null);
+  const snowStepIndexRef = useRef(0);
 
   const getAudioContext = useCallback(async () => {
-    if (!audioCtxRef.current) {
-      const AudioCtor =
-        window.AudioContext ??
-        (window as WindowWithWebkitAudio).webkitAudioContext;
+    if (typeof window === 'undefined') return null;
 
+    if (!audioContextRef.current) {
+      const AudioCtor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtor) return null;
-      const ctx = new AudioCtor();
-      audioCtxRef.current = ctx;
-
-      const masterGain = ctx.createGain();
-      const masterAnalyser = ctx.createAnalyser();
-      masterAnalyser.fftSize = 64;
-      masterAnalyser.smoothingTimeConstant = 0.8;
-
-      masterGain.connect(masterAnalyser);
-      masterAnalyser.connect(ctx.destination);
-
-      masterGainRef.current = masterGain;
-      masterAnalyserRef.current = masterAnalyser;
+      audioContextRef.current = new AudioCtor();
     }
 
-    if (audioCtxRef.current.state === 'suspended') {
-      await audioCtxRef.current.resume();
+    if (audioContextRef.current.state === 'suspended') {
+      await audioContextRef.current.resume();
     }
 
-    return audioCtxRef.current;
+    return audioContextRef.current;
   }, []);
-
-  const stopAmbient = useCallback(() => {
-    const nodes = ambientNodesRef.current;
-    if (!nodes) return;
-
-    try {
-      nodes.oscillators.forEach((oscillator) => oscillator.stop());
-      nodes.noise.stop();
-      nodes.lfo.stop();
-    } catch {
-      // Nodes may already be stopped during route transitions.
-    }
-
-    nodes.oscillators.forEach((oscillator) => oscillator.disconnect());
-    nodes.noise.disconnect();
-    nodes.lfo.disconnect();
-    nodes.lfoGain.disconnect();
-    nodes.noiseFilter.disconnect();
-    nodes.filter.disconnect();
-    nodes.gain.disconnect();
-    ambientNodesRef.current = null;
-  }, []);
-
-  const clearHeroRoomStopTimer = useCallback(() => {
-    if (heroRoomStopTimerRef.current !== null) {
-      window.clearTimeout(heroRoomStopTimerRef.current);
-      heroRoomStopTimerRef.current = null;
-    }
-  }, []);
-
-  const stopHeroRoom = useCallback(() => {
-    clearHeroRoomStopTimer();
-
-    const nodes = heroRoomNodesRef.current;
-    if (!nodes) return;
-
-    try {
-      nodes.body.stop();
-      nodes.harmonic.stop();
-      nodes.air.stop();
-      nodes.tremor.stop();
-      nodes.vigil.stop();
-    } catch {
-      // A route transition may catch the voices mid-release.
-    }
-
-    nodes.body.disconnect();
-    nodes.harmonic.disconnect();
-    nodes.air.disconnect();
-    nodes.tremor.disconnect();
-    nodes.tremorGain.disconnect();
-    nodes.vigil.disconnect();
-    nodes.vigilGain.disconnect();
-    nodes.filter.disconnect();
-    nodes.gain.disconnect();
-    heroRoomNodesRef.current = null;
-  }, [clearHeroRoomStopTimer]);
-
-  const startAmbient = useCallback(async () => {
-    if (isMutedRef.current || !isUnlockedRef.current || ambientNodesRef.current) return;
-
-    const ctx = await getAudioContext();
-    if (!ctx) return;
-
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(220, ctx.currentTime);
-    filter.Q.setValueAtTime(0.8, ctx.currentTime);
-
-    const base = ctx.createOscillator();
-    base.type = 'sawtooth';
-    base.frequency.setValueAtTime(47, ctx.currentTime);
-
-    const harmonic = ctx.createOscillator();
-    harmonic.type = 'triangle';
-    harmonic.frequency.setValueAtTime(62, ctx.currentTime);
-    harmonic.detune.setValueAtTime(-5, ctx.currentTime);
-
-    const noise = ctx.createBufferSource();
-    noise.buffer = createNoiseBuffer(ctx, 2.4);
-    noise.loop = true;
-
-    const noiseFilter = ctx.createBiquadFilter();
-    noiseFilter.type = 'bandpass';
-    noiseFilter.frequency.setValueAtTime(180, ctx.currentTime);
-    noiseFilter.Q.setValueAtTime(0.42, ctx.currentTime);
-
-    const lfo = ctx.createOscillator();
-    lfo.type = 'sine';
-    lfo.frequency.setValueAtTime(0.14, ctx.currentTime);
-
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.setValueAtTime(0.002, ctx.currentTime);
-
-    base.connect(filter);
-    harmonic.connect(filter);
-    noise.connect(noiseFilter);
-    noiseFilter.connect(filter);
-    filter.connect(gain);
-    if (masterGainRef.current) gain.connect(masterGainRef.current);
-
-    lfo.connect(lfoGain);
-    lfoGain.connect(gain.gain);
-
-    base.start();
-    harmonic.start();
-    noise.start();
-    lfo.start();
-
-    gain.gain.exponentialRampToValueAtTime(0.015, ctx.currentTime + 1.8);
-
-    ambientNodesRef.current = {
-      gain,
-      filter,
-      noiseFilter,
-      oscillators: [base, harmonic],
-      noise,
-      lfo,
-      lfoGain,
-    };
-  }, [getAudioContext]);
-
-  const setHeroRoomTone = useCallback(async (progress: number) => {
-    if (progress < 0 || isMutedRef.current || !isUnlockedRef.current) {
-      stopHeroRoom();
-      return;
-    }
-
-    const ctx = await getAudioContext();
-    if (!ctx) return;
-
-    clearHeroRoomStopTimer();
-
-    let nodes = heroRoomNodesRef.current;
-    if (!nodes) {
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(118, ctx.currentTime);
-      filter.Q.setValueAtTime(0.42, ctx.currentTime);
-
-      const body = ctx.createOscillator();
-      body.type = 'sine';
-      body.frequency.setValueAtTime(41, ctx.currentTime);
-
-      const harmonic = ctx.createOscillator();
-      harmonic.type = 'triangle';
-      harmonic.frequency.setValueAtTime(61, ctx.currentTime);
-      harmonic.detune.setValueAtTime(-4, ctx.currentTime);
-
-      const air = ctx.createOscillator();
-      air.type = 'sine';
-      air.frequency.setValueAtTime(83, ctx.currentTime);
-      air.detune.setValueAtTime(7, ctx.currentTime);
-
-      const tremor = ctx.createOscillator();
-      tremor.type = 'sine';
-      tremor.frequency.setValueAtTime(0.06, ctx.currentTime);
-
-      const tremorGain = ctx.createGain();
-      tremorGain.gain.setValueAtTime(0.00075, ctx.currentTime);
-
-      const vigil = ctx.createOscillator();
-      vigil.type = 'sine';
-      vigil.frequency.setValueAtTime(92, ctx.currentTime);
-
-      const vigilGain = ctx.createGain();
-      vigilGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-
-      body.connect(filter);
-      harmonic.connect(filter);
-      air.connect(filter);
-      vigil.connect(vigilGain);
-      vigilGain.connect(filter);
-      filter.connect(gain);
-      if (masterGainRef.current) gain.connect(masterGainRef.current);
-
-      tremor.connect(tremorGain);
-      tremorGain.connect(gain.gain);
-
-      body.start();
-      harmonic.start();
-      air.start();
-      tremor.start();
-      vigil.start();
-
-      nodes = { air, body, filter, gain, harmonic, tremor, tremorGain, vigil, vigilGain };
-      heroRoomNodesRef.current = nodes;
-    }
-
-    const clampedProgress = Math.min(Math.max(progress, 0), 1);
-    const vigilPresence =
-      clampedProgress < 0.46
-        ? 0
-        : clampedProgress < 0.74
-          ? Math.min((clampedProgress - 0.46) / 0.18, 1) * (1 - Math.min(Math.max(clampedProgress - 0.64, 0) / 0.1, 1) * 0.28)
-          : Math.max(1 - (clampedProgress - 0.74) / 0.18, 0) * 0.35;
-    const chamberGain =
-      clampedProgress < 0.48
-        ? 0.0008 + clampedProgress * 0.0024
-        : clampedProgress < 0.72
-          ? 0.00195 + ((clampedProgress - 0.48) / 0.24) * 0.00115
-          : 0.0031 - ((clampedProgress - 0.72) / 0.28) * 0.0029;
-    const filteredGain = Math.max(0.00012, chamberGain);
-    const filterCutoff =
-      clampedProgress < 0.48
-        ? 102 + clampedProgress * 38
-        : clampedProgress < 0.72
-          ? 120 + ((clampedProgress - 0.48) / 0.24) * 28
-          : 148 - ((clampedProgress - 0.72) / 0.28) * 52;
-
-    nodes.gain.gain.cancelScheduledValues(ctx.currentTime);
-    nodes.gain.gain.setTargetAtTime(filteredGain, ctx.currentTime, 0.28);
-
-    nodes.filter.frequency.cancelScheduledValues(ctx.currentTime);
-    nodes.filter.frequency.setTargetAtTime(filterCutoff, ctx.currentTime, 0.36);
-
-    nodes.body.frequency.cancelScheduledValues(ctx.currentTime);
-    nodes.body.frequency.setTargetAtTime(39.5 + clampedProgress * 3.6, ctx.currentTime, 0.32);
-
-    nodes.harmonic.frequency.cancelScheduledValues(ctx.currentTime);
-    nodes.harmonic.frequency.setTargetAtTime(58 + clampedProgress * 5.5, ctx.currentTime, 0.32);
-
-    nodes.air.frequency.cancelScheduledValues(ctx.currentTime);
-    nodes.air.frequency.setTargetAtTime(80 + clampedProgress * 9, ctx.currentTime, 0.34);
-
-    nodes.vigil.frequency.cancelScheduledValues(ctx.currentTime);
-    nodes.vigil.frequency.setTargetAtTime(92 + vigilPresence * 7.5, ctx.currentTime, 0.4);
-
-    nodes.vigilGain.gain.cancelScheduledValues(ctx.currentTime);
-    nodes.vigilGain.gain.setTargetAtTime(0.0001 + vigilPresence * 0.0009, ctx.currentTime, 0.32);
-
-    if (clampedProgress > 0.985) {
-      heroRoomStopTimerRef.current = window.setTimeout(() => {
-        stopHeroRoom();
-      }, 640);
-    }
-  }, [clearHeroRoomStopTimer, getAudioContext, stopHeroRoom]);
-
-  const unlockAudio = useCallback(async () => {
-    const ctx = await getAudioContext();
-    if (!ctx) return;
-
-    isUnlockedRef.current = true;
-    setIsUnlocked(true);
-
-    if (!isMutedRef.current) {
-      await startAmbient();
-    }
-  }, [getAudioContext, startAmbient]);
 
   const playBlip = useCallback(async () => {
-    if (isMutedRef.current || !isUnlockedRef.current) return;
-
     const now = performance.now();
-    if (now - lastRelayClickRef.current < 48) return;
-    lastRelayClickRef.current = now;
-
-    const ctx = await getAudioContext();
-    if (!ctx) return;
-
-    const relayOscillator = ctx.createOscillator();
-    const relayGain = ctx.createGain();
-    const relayFilter = ctx.createBiquadFilter();
-    const thockOscillator = ctx.createOscillator();
-    const thockGain = ctx.createGain();
-
-    relayOscillator.type = 'square';
-    relayOscillator.frequency.setValueAtTime(1680, ctx.currentTime);
-    relayOscillator.frequency.exponentialRampToValueAtTime(760, ctx.currentTime + 0.022);
-
-    relayFilter.type = 'highpass';
-    relayFilter.frequency.setValueAtTime(980, ctx.currentTime);
-    relayFilter.Q.setValueAtTime(0.6, ctx.currentTime);
-
-    relayGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    relayGain.gain.exponentialRampToValueAtTime(0.022, ctx.currentTime + 0.004);
-    relayGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.045);
-
-    thockOscillator.type = 'triangle';
-    thockOscillator.frequency.setValueAtTime(220, ctx.currentTime);
-    thockOscillator.frequency.exponentialRampToValueAtTime(140, ctx.currentTime + 0.035);
-
-    thockGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    thockGain.gain.exponentialRampToValueAtTime(0.014, ctx.currentTime + 0.005);
-    thockGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.055);
-
-    relayOscillator.connect(relayFilter);
-    relayFilter.connect(relayGain);
-    if (masterGainRef.current) relayGain.connect(masterGainRef.current);
-
-    thockOscillator.connect(thockGain);
-    if (masterGainRef.current) thockGain.connect(masterGainRef.current);
-
-    relayOscillator.start();
-    thockOscillator.start();
-    relayOscillator.stop(ctx.currentTime + 0.06);
-    thockOscillator.stop(ctx.currentTime + 0.06);
-  }, [getAudioContext]);
-
-  const playTypingTick = useCallback(async () => {
-    if (isMutedRef.current || !isUnlockedRef.current) return;
-
-    const now = performance.now();
-    if (now - lastTypingTickRef.current < 25) return;
-    lastTypingTickRef.current = now;
+    if (now - lastBlipRef.current < 48) return;
+    lastBlipRef.current = now;
 
     const ctx = await getAudioContext();
     if (!ctx) return;
@@ -428,217 +47,259 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const gainNode = ctx.createGain();
     const filter = ctx.createBiquadFilter();
 
-    oscillator.type = 'square';
-    oscillator.frequency.setValueAtTime(1620, ctx.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(540, ctx.currentTime + 0.025);
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(1240, ctx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(620, ctx.currentTime + 0.04);
 
     filter.type = 'highpass';
-    filter.frequency.setValueAtTime(980, ctx.currentTime);
+    filter.frequency.setValueAtTime(900, ctx.currentTime);
+    filter.Q.setValueAtTime(0.65, ctx.currentTime);
 
-    gainNode.gain.setValueAtTime(0.018, ctx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.03);
+    gainNode.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.018, ctx.currentTime + 0.005);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.055);
 
     oscillator.connect(filter);
     filter.connect(gainNode);
-    if (masterGainRef.current) gainNode.connect(masterGainRef.current);
+    gainNode.connect(ctx.destination);
 
     oscillator.start();
-    oscillator.stop(ctx.currentTime + 0.03);
+    oscillator.stop(ctx.currentTime + 0.06);
   }, [getAudioContext]);
 
-  const playGlitchBurst = useCallback(async () => {
-    if (isMutedRef.current || !isUnlockedRef.current) return;
+  const detectFootstepOffsets = useCallback((buffer: AudioBuffer) => {
+    const channel = buffer.getChannelData(0);
+    const sampleRate = buffer.sampleRate;
+    const windowSize = Math.max(256, Math.floor(sampleRate * 0.018));
+    const hopSize = Math.max(128, Math.floor(sampleRate * 0.009));
+    const rmsValues: Array<{ offset: number; value: number }> = [];
 
-    const ctx = await getAudioContext();
-    if (!ctx) return;
+    for (let start = 0; start + windowSize < channel.length; start += hopSize) {
+      let sum = 0;
 
-    const carrier = ctx.createOscillator();
-    const mod = ctx.createOscillator();
-    const carrierGain = ctx.createGain();
-    const modGain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-
-    carrier.type = 'sawtooth';
-    carrier.frequency.setValueAtTime(130, ctx.currentTime);
-    carrier.frequency.exponentialRampToValueAtTime(34, ctx.currentTime + 0.45);
-
-    mod.type = 'square';
-    mod.frequency.setValueAtTime(28, ctx.currentTime);
-    modGain.gain.setValueAtTime(55, ctx.currentTime);
-
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(720, ctx.currentTime);
-    filter.Q.setValueAtTime(1.4, ctx.currentTime);
-
-    carrierGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    carrierGain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.02);
-    carrierGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.55);
-
-    mod.connect(modGain);
-    modGain.connect(carrier.frequency);
-    carrier.connect(filter);
-    filter.connect(carrierGain);
-    if (masterGainRef.current) carrierGain.connect(masterGainRef.current);
-
-    carrier.start();
-    mod.start();
-    carrier.stop(ctx.currentTime + 0.6);
-    mod.stop(ctx.currentTime + 0.6);
-  }, [getAudioContext]);
-
-  const playHeroSwell = useCallback(async (intensity = 1) => {
-    if (isMutedRef.current || !isUnlockedRef.current) return;
-
-    const now = performance.now();
-    if (now - lastHeroSwellRef.current < 680) return;
-    lastHeroSwellRef.current = now;
-
-    const ctx = await getAudioContext();
-    if (!ctx) return;
-
-    const swellGain = ctx.createGain();
-    const swellFilter = ctx.createBiquadFilter();
-    const body = ctx.createOscillator();
-    const harmony = ctx.createOscillator();
-    const swellAmount = Math.min(Math.max(intensity, 0.45), 1.3);
-
-    swellFilter.type = 'lowpass';
-    swellFilter.frequency.setValueAtTime(980, ctx.currentTime);
-    swellFilter.frequency.exponentialRampToValueAtTime(560, ctx.currentTime + 1.6);
-    swellFilter.Q.setValueAtTime(0.7, ctx.currentTime);
-
-    swellGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    swellGain.gain.exponentialRampToValueAtTime(0.012 * swellAmount, ctx.currentTime + 0.22);
-    swellGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.9);
-
-    body.type = 'triangle';
-    body.frequency.setValueAtTime(196, ctx.currentTime);
-    body.frequency.exponentialRampToValueAtTime(164, ctx.currentTime + 1.6);
-    body.detune.setValueAtTime(-4, ctx.currentTime);
-
-    harmony.type = 'sine';
-    harmony.frequency.setValueAtTime(294, ctx.currentTime);
-    harmony.frequency.exponentialRampToValueAtTime(246, ctx.currentTime + 1.6);
-    harmony.detune.setValueAtTime(3, ctx.currentTime);
-
-    body.connect(swellFilter);
-    harmony.connect(swellFilter);
-    swellFilter.connect(swellGain);
-    if (masterGainRef.current) swellGain.connect(masterGainRef.current);
-
-    body.start();
-    harmony.start();
-    body.stop(ctx.currentTime + 2);
-    harmony.stop(ctx.currentTime + 2);
-  }, [getAudioContext]);
-
-  const playTransitionTone = useCallback(async () => {
-    if (isMutedRef.current || !isUnlockedRef.current) return;
-
-    const now = performance.now();
-    if (now - lastTransitionToneRef.current < 1400) return;
-    lastTransitionToneRef.current = now;
-
-    const ctx = await getAudioContext();
-    if (!ctx) return;
-
-    const bridgeGain = ctx.createGain();
-    const bridgeFilter = ctx.createBiquadFilter();
-    const body = ctx.createOscillator();
-    const air = ctx.createOscillator();
-
-    bridgeFilter.type = 'lowpass';
-    bridgeFilter.frequency.setValueAtTime(420, ctx.currentTime);
-    bridgeFilter.Q.setValueAtTime(0.7, ctx.currentTime);
-
-    bridgeGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    bridgeGain.gain.exponentialRampToValueAtTime(0.0042, ctx.currentTime + 0.16);
-    bridgeGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.15);
-
-    body.type = 'triangle';
-    body.frequency.setValueAtTime(132, ctx.currentTime);
-    body.frequency.exponentialRampToValueAtTime(118, ctx.currentTime + 1.1);
-
-    air.type = 'sine';
-    air.frequency.setValueAtTime(198, ctx.currentTime);
-    air.frequency.exponentialRampToValueAtTime(176, ctx.currentTime + 1.1);
-    air.detune.setValueAtTime(5, ctx.currentTime);
-
-    body.connect(bridgeFilter);
-    air.connect(bridgeFilter);
-    bridgeFilter.connect(bridgeGain);
-    if (masterGainRef.current) bridgeGain.connect(masterGainRef.current);
-
-    body.start();
-    air.start();
-    body.stop(ctx.currentTime + 1.2);
-    air.stop(ctx.currentTime + 1.2);
-  }, [getAudioContext]);
-
-  const toggleMute = useCallback(() => {
-    setIsMuted((prev) => {
-      const next = !prev;
-      isMutedRef.current = next;
-
-      if (next) {
-        stopAmbient();
-        stopHeroRoom();
-      } else if (isUnlockedRef.current) {
-        void startAmbient();
+      for (let index = 0; index < windowSize; index += 1) {
+        const sample = channel[start + index];
+        sum += sample * sample;
       }
 
-      return next;
-    });
-  }, [startAmbient, stopAmbient, stopHeroRoom]);
-
-  const getAudioData = useCallback(() => {
-    if (!masterAnalyserRef.current || isMutedRef.current || !isUnlockedRef.current) return 0;
-    
-    const dataArray = new Uint8Array(masterAnalyserRef.current.frequencyBinCount);
-    masterAnalyserRef.current.getByteFrequencyData(dataArray);
-    
-    let sum = 0;
-    for (let i = 0; i < dataArray.length; i++) {
-      sum += dataArray[i];
+      rmsValues.push({
+        offset: start / sampleRate,
+        value: Math.sqrt(sum / windowSize),
+      });
     }
-    
-    return sum / (dataArray.length * 255);
+
+    if (!rmsValues.length) {
+      return [0];
+    }
+
+    const sorted = rmsValues.map((entry) => entry.value).sort((a, b) => a - b);
+    const highIndex = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.86));
+    const threshold = Math.max(sorted[highIndex] ?? 0, 0.02);
+    const minSpacing = 0.16;
+    const clipDuration = 0.24;
+    const offsets: number[] = [];
+
+    for (let index = 1; index < rmsValues.length - 1; index += 1) {
+      const current = rmsValues[index];
+      const previous = rmsValues[index - 1];
+      const next = rmsValues[index + 1];
+
+      if (!previous || !next) continue;
+      if (current.value < threshold) continue;
+      if (current.value < previous.value || current.value < next.value) continue;
+      if (offsets.length && current.offset - offsets[offsets.length - 1] < minSpacing) continue;
+      if (current.offset > buffer.duration - clipDuration) continue;
+
+      offsets.push(Math.max(0, current.offset - 0.015));
+    }
+
+    return offsets.length ? offsets : [0];
+  }, []);
+
+  const loadSnowStepTrack = useCallback(async (ctx: AudioContext) => {
+    if (snowStepTrackRef.current) {
+      return snowStepTrackRef.current;
+    }
+
+    if (snowStepLoadRef.current) {
+      return snowStepLoadRef.current;
+    }
+
+    snowStepLoadRef.current = fetch('/hero-terrain/audio/dragon-studio-footsteps-in-the-snow-499652.mp3')
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error('Unable to load provided hero footstep sample.');
+        }
+
+        const audioData = await response.arrayBuffer();
+        return await ctx.decodeAudioData(audioData.slice(0));
+      })
+      .then((buffer) => {
+        snowStepTrackRef.current = buffer;
+        snowStepOffsetsRef.current = detectFootstepOffsets(buffer);
+        return buffer;
+      })
+      .catch(() => null)
+      .finally(() => {
+        snowStepLoadRef.current = null;
+      });
+
+    return snowStepLoadRef.current;
+  }, [detectFootstepOffsets]);
+
+  const playFallbackSnowStep = useCallback((ctx: AudioContext) => {
+    if (!snowBufferRef.current) {
+      const duration = 0.18;
+      const length = Math.floor(ctx.sampleRate * duration);
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+      const channel = buffer.getChannelData(0);
+
+      for (let index = 0; index < length; index += 1) {
+        const progress = index / length;
+        const envelope = Math.exp(-progress * 7.2);
+        const grit = (Math.random() * 2 - 1) * 0.85;
+        const body = Math.sin(progress * Math.PI * 14) * 0.15;
+        channel[index] = (grit + body) * envelope;
+      }
+
+      snowBufferRef.current = buffer;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = snowBufferRef.current;
+    source.playbackRate.setValueAtTime(0.92 + Math.random() * 0.14, ctx.currentTime);
+
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.setValueAtTime(640 + Math.random() * 160, ctx.currentTime);
+    bandpass.Q.setValueAtTime(0.55, ctx.currentTime);
+
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.setValueAtTime(1280, ctx.currentTime);
+    lowpass.Q.setValueAtTime(0.7, ctx.currentTime);
+
+    const highpass = ctx.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.setValueAtTime(85, ctx.currentTime);
+    highpass.Q.setValueAtTime(0.45, ctx.currentTime);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.12 + Math.random() * 0.025, ctx.currentTime + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.16);
+
+    const impactOscillator = ctx.createOscillator();
+    impactOscillator.type = 'triangle';
+    impactOscillator.frequency.setValueAtTime(126 + Math.random() * 16, ctx.currentTime);
+    impactOscillator.frequency.exponentialRampToValueAtTime(58, ctx.currentTime + 0.1);
+
+    const impactGain = ctx.createGain();
+    impactGain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    impactGain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
+    impactGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.setValueAtTime(-20, ctx.currentTime);
+    compressor.knee.setValueAtTime(14, ctx.currentTime);
+    compressor.ratio.setValueAtTime(3, ctx.currentTime);
+    compressor.attack.setValueAtTime(0.003, ctx.currentTime);
+    compressor.release.setValueAtTime(0.12, ctx.currentTime);
+
+    source.connect(bandpass);
+    bandpass.connect(lowpass);
+    lowpass.connect(highpass);
+    highpass.connect(gain);
+    impactOscillator.connect(impactGain);
+    impactGain.connect(gain);
+    gain.connect(compressor);
+    compressor.connect(ctx.destination);
+
+    source.start();
+    impactOscillator.start();
+    source.stop(ctx.currentTime + 0.18);
+    impactOscillator.stop(ctx.currentTime + 0.13);
   }, []);
 
   useEffect(() => {
-    const handleFirstGesture = () => {
-      void unlockAudio();
+    if (typeof window === 'undefined') return undefined;
+
+    const unlockAudio = async () => {
+      const ctx = await getAudioContext();
+      if (ctx) {
+        void loadSnowStepTrack(ctx);
+      }
     };
 
-    window.addEventListener('pointerdown', handleFirstGesture, { once: true });
-    window.addEventListener('keydown', handleFirstGesture, { once: true });
+    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('touchstart', unlockAudio, { passive: true });
+    window.addEventListener('keydown', unlockAudio);
 
     return () => {
-      window.removeEventListener('pointerdown', handleFirstGesture);
-      window.removeEventListener('keydown', handleFirstGesture);
-      stopAmbient();
-      stopHeroRoom();
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
     };
-  }, [stopAmbient, stopHeroRoom, unlockAudio]);
+  }, [getAudioContext, loadSnowStepTrack]);
+
+  const playSnowStep = useCallback(async () => {
+    const now = performance.now();
+    if (now - lastSnowStepRef.current < 90) return;
+    lastSnowStepRef.current = now;
+
+    const ctx = await getAudioContext();
+    if (!ctx) return;
+
+    const buffer = await loadSnowStepTrack(ctx);
+
+    if (!buffer) {
+      playFallbackSnowStep(ctx);
+      return;
+    }
+
+    const offsets = snowStepOffsetsRef.current ?? [0];
+    const offset = offsets[snowStepIndexRef.current % offsets.length] ?? 0;
+    snowStepIndexRef.current += 1;
+    const clipDuration = Math.min(0.24, Math.max(0.1, buffer.duration - offset - 0.01));
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.setValueAtTime(0.98 + Math.random() * 0.05, ctx.currentTime);
+
+    const highpass = ctx.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.setValueAtTime(70, ctx.currentTime);
+    highpass.Q.setValueAtTime(0.35, ctx.currentTime);
+
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.setValueAtTime(1800, ctx.currentTime);
+    lowpass.Q.setValueAtTime(0.6, ctx.currentTime);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.28, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + clipDuration);
+
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.setValueAtTime(-18, ctx.currentTime);
+    compressor.knee.setValueAtTime(12, ctx.currentTime);
+    compressor.ratio.setValueAtTime(2.8, ctx.currentTime);
+    compressor.attack.setValueAtTime(0.002, ctx.currentTime);
+    compressor.release.setValueAtTime(0.08, ctx.currentTime);
+
+    source.connect(highpass);
+    highpass.connect(lowpass);
+    lowpass.connect(gain);
+    gain.connect(compressor);
+    compressor.connect(ctx.destination);
+
+    source.start(ctx.currentTime, offset, clipDuration);
+    source.stop(ctx.currentTime + clipDuration + 0.02);
+  }, [getAudioContext, loadSnowStepTrack, playFallbackSnowStep]);
 
   return (
-    <AudioStateContext.Provider
-      value={{
-        isMuted,
-        isUnlocked,
-        toggleMute,
-        unlockAudio,
-        startAmbient,
-        stopAmbient,
-        setHeroRoomTone,
-        playBlip,
-        playTypingTick,
-        playGlitchBurst,
-        playHeroSwell,
-        playTransitionTone,
-        getAudioData,
-      }}
-    >
+    <AudioStateContext.Provider value={{ playBlip, playSnowStep }}>
       {children}
     </AudioStateContext.Provider>
   );

@@ -6,7 +6,6 @@ import { useKeySequence } from '@/hooks/useKeySequence';
 
 interface SudoContextType {
   sudoMode: boolean;
-  activationCount: number;
   setSudoMode: (value: boolean) => void;
   toggleSudoMode: () => void;
 }
@@ -16,16 +15,12 @@ const SudoContext = createContext<SudoContextType | undefined>(undefined);
 export const SudoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
   const [sudoMode, setSudoModeState] = useState(false);
-  const [activationCount, setActivationCount] = useState(0);
   const sudoModeRef = useRef(false);
 
   const setSudoMode = useCallback((value: boolean) => {
     if (value === sudoModeRef.current) return;
     sudoModeRef.current = value;
     setSudoModeState(value);
-    if (value) {
-      setActivationCount((current) => current + 1);
-    }
   }, []);
 
   const toggleSudoMode = useCallback(() => {
@@ -49,11 +44,7 @@ export const SudoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toggleSudoMode]);
 
-  return (
-    <SudoContext.Provider value={{ sudoMode, activationCount, setSudoMode, toggleSudoMode }}>
-      {children}
-    </SudoContext.Provider>
-  );
+  return <SudoContext.Provider value={{ sudoMode, setSudoMode, toggleSudoMode }}>{children}</SudoContext.Provider>;
 };
 
 export const useSudo = () => {
